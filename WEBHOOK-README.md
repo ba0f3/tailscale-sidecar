@@ -238,7 +238,12 @@ The webhook server supports these environment variables (set in `webhook-deploym
 The webhook reads configuration from the `tailscale-webhook-config` ConfigMap:
 
 - `ts-extra-args`: Tailscale extra arguments (e.g., `--login-server=https://your-headscale-server.com`). This allows you to change the Headscale login server without rebuilding the webhook image.
-- `ts-kube-secret-pattern`: Pattern for Kubernetes secret names (currently not used, reserved for future use)
+- `ts-kube-secret-pattern`: Pattern for Kubernetes secret names. Supports template variables:
+  - `{{NAMESPACE}}` - Replaced with pod namespace
+  - `{{POD_NAME}}` - Replaced with pod name
+  - `{{POD_UID}}` - Replaced with pod UID
+  - Example: `tailscale-{{NAMESPACE}}-{{POD_NAME}}` becomes `tailscale-default-my-pod`
+  - The pattern is automatically sanitized to comply with Kubernetes DNS-1123 subdomain requirements
 
 To update the login server:
 ```bash
@@ -256,7 +261,7 @@ The injected sidecar matches the configuration from `sidecar.yaml`:
 - **Environment Variables**:
   - `TS_EXTRA_ARGS`: Login server URL (configurable via ConfigMap)
   - `TS_HOSTNAME`: Unique hostname format `<pod-name>-<namespace>` to avoid Headscale name collisions
-  - `TS_KUBE_SECRET`: Kubernetes secret name for state storage
+  - `TS_KUBE_SECRET`: Kubernetes secret name for state storage (generated from pattern in ConfigMap, e.g., `tailscale-<namespace>-<pod-name>`)
   - `TS_USERSPACE`: false (privileged mode)
   - `TS_DEBUG_FIREWALL_MODE`: auto
   - `TS_AUTHKEY`: From `tailscale-auth` secret

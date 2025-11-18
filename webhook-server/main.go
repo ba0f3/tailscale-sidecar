@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -164,11 +165,86 @@ func sanitizeK8sName(name string) string {
 	return result
 }
 
+func interpolateTemplate(template string, pod *corev1.Pod) string {
+	// Replace template variables with actual values
+	result := template
+	result = strings.ReplaceAll(result, "{{NAMESPACE}}", pod.Namespace)
+	result = strings.ReplaceAll(result, "{{POD_NAME}}", pod.Name)
+	result = strings.ReplaceAll(result, "{{POD_UID}}", string(pod.UID))
+	return result
+}
+
+func sanitizeSecretName(name string) string {
+	// Kubernetes secret names must be valid DNS-1123 subdomain
+	// Convert to lowercase and replace invalid characters
+	result := strings.ToLower(name)
+
+	// Replace invalid characters with dashes (keep only alphanumeric, dashes, and dots)
+	var builder strings.Builder
+	for _, r := range result {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+			builder.WriteRune(r)
+		} else {
+			builder.WriteRune('-')
+		}
+	}
+	result = builder.String()
+
+	// Remove consecutive dashes and dots
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+	for strings.Contains(result, "..") {
+		result = strings.ReplaceAll(result, "..", ".")
+	}
+	for strings.Contains(result, "-.") {
+		result = strings.ReplaceAll(result, "-.", ".")
+	}
+	for strings.Contains(result, ".-") {
+		result = strings.ReplaceAll(result, ".-", "-")
+	}
+
+	// Remove leading/trailing dashes and dots
+	result = strings.Trim(result, "-.")
+
+	// Ensure it starts and ends with alphanumeric
+	if len(result) == 0 {
+		result = "tailscale-secret"
+	} else {
+		// Check first character
+		first := result[0]
+		if !((first >= 'a' && first <= 'z') || (first >= '0' && first <= '9')) {
+			result = "x" + result
+		}
+		// Check last character
+		last := result[len(result)-1]
+		if !((last >= 'a' && last <= 'z') || (last >= '0' && last <= '9')) {
+			result = result + "x"
+		}
+	}
+
+	// Limit length to 253 characters (Kubernetes limit)
+	if len(result) > 253 {
+		result = result[:253]
+		// Ensure it still ends with alphanumeric after truncation
+		last := result[len(result)-1]
+		if !((last >= 'a' && last <= 'z') || (last >= '0' && last <= '9')) {
+			result = result[:len(result)-1] + "x"
+		}
+	}
+
+	return result
+}
+
 func generateSidecarPatch(pod *corev1.Pod) []patchOperation {
 	patches := []patchOperation{}
 
-	// Get TS_KUBE_SECRET from environment or use default pattern
-	tsKubeSecret := getEnv("TS_KUBE_SECRET", fmt.Sprintf("tailscale-%s-%s", pod.Namespace, pod.Name))
+	// Get TS_KUBE_SECRET pattern from environment or use default
+	tsKubeSecretPattern := getEnv("TS_KUBE_SECRET", fmt.Sprintf("tailscale-%s-%s", pod.Namespace, pod.Name))
+
+	// Interpolate template variables and sanitize the secret name
+	tsKubeSecret := interpolateTemplate(tsKubeSecretPattern, pod)
+	tsKubeSecret = sanitizeSecretName(tsKubeSecret)
 
 	// Get TS_EXTRA_ARGS from environment (can be set via ConfigMap/EnvVar in deployment)
 	tsExtraArgs := getEnv("TS_EXTRA_ARGS", "")
