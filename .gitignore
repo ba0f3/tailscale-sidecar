@@ -1,0 +1,7 @@
+webhook-certs/
+*.pem
+*.key
+*.csr
+*.conf
+*.srl
+

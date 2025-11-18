@@ -1,0 +1,15 @@
+# Example pod to test the webhook
+# This pod will automatically get the Tailscale sidecar injected
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-tailscale-injection
+  labels:
+    tailscale.com/inject: "true"
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+

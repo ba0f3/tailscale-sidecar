@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: tailscale-webhook
+  labels:
+    app: tailscale-webhook
+webhooks:
+- name: tailscale-injector.tailscale.com
+  admissionReviewVersions: ["v1", "v1beta1"]
+  clientConfig:
+    service:
+      name: tailscale-webhook
+      namespace: tailscale
+      path: "/mutate"
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUROekNDQWgrZ0F3SUJBZ0lVYTRFV3BJTm9EM2Q1ZDVXK0RrZ0lPYWFWdUhnd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0tqRW9NQ1lHQTFVRUF3d2ZkR0ZwYkhOallXeGxMWGRsWW1odmIyc3VkR0ZwYkhOallXeGxMbk4yWXpBZwpGdzB5TlRFeE1UZ3hOekV3TXpCYUdBOHlNRFV6TURRd05URTNNVEF6TUZvd0tqRW9NQ1lHQTFVRUF3d2ZkR0ZwCmJITmpZV3hsTFhkbFltaHZiMnN1ZEdGcGJITmpZV3hsTG5OMll6Q0NBU0l3RFFZSktvWklodmNOQVFFQkJRQUQKZ2dFUEFEQ0NBUW9DZ2dFQkFLMStXTzR5OTd4TjBheENiTkF6U2RCTVlldlVjY3JYdnNWV1ZMZE5kMjRWOXZNeApmN3IyS3ozbzZwZWFLcjgwRHpzS2dVZi9PbE84anM1cHFJNGpYZnpJU0lVVEFtcWl4NmQyTkN3aWlnU2VNS2JBCjdXK3JEU3JJejBxdlRDaXNxZTE2a3ZkOHFCMEFaaG84RGdBS2pXVkUrOU5lL2NjSmd6RmJpcXUwU0pyWVdGSkcKUHlvVDEzVlJWUmdPQjhIVERLelF1WEtUSGE5Wkw3ZEU2WkpzN1FXZUpPWHJmcEoxMVluK1ZpRFVGeURzbU5DYgozcXdZVUZKbkE4Rmx0WExqUlNQdUsxQjdkY05NODgzK1kxMERLZ2N4WnVKdDhVS24xL1o2NDM0SzFpWmlYWU1FCnovZnZnQmd0b2lRRk1HUGxhVkp3RE5zdFpXTVFJdXZMOFRVdjNDY0NBd0VBQWFOVE1GRXdIUVlEVlIwT0JCWUUKRkNxa1JOUml4WlR0S25GM2JLRU5lSVJ6bm9YVU1COEdBMVVkSXdRWU1CYUFGQ3FrUk5SaXhaVHRLbkYzYktFTgplSVJ6bm9YVU1BOEdBMVVkRXdFQi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFGV2RJekhtCjhNbHpTbUl5bnorUExZMjVrVkFkMVFiUGF6VEF4RUF3bnNocVJ2WENDeWhPbkNqcWplVmZ5L2JSeFRFWWhMTUEKeWw2bjNmbWduRnByeXpRY2lCUm82MFNhMUVlVjlqT1N6QlUrc0IxdWZKOUYrU3kyUmd4QkhqZGRWbER2WU84UwpZZ1ZvZ1pISlExaE04cmpJWmw5ck1PYk5SalF6bHpRR2tMc252Ykc3SEwvdHFJV2pZQStkZnVRNVJFbS9XbkFtCitZV1hSbFh2WmZWUzhuSkFYU2FxYnYrQ2gzWXFJdkVvaWdGTXBMOFdscWo1WnVydDVHM2REenplZmZjaWxWVEkKYlZUdTh6VTVEKzFwaWZ3YVU5cFIxaFBuV2F4QTQ5ZDdOclg4bStYN3N6Slh3enhKVXIrazZpenBDRWxnd3dEdApuLzdRQnA3VGVnQ2lLZTQ9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  rules:
+  - operations: ["CREATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+  failurePolicy: Fail
+  sideEffects: None
+  namespaceSelector:
+    matchExpressions:
+    - key: tailscale.com/inject
+      operator: NotIn
+      values: ["disabled"]
+  objectSelector:
+    matchLabels:
+      tailscale.com/inject: "true"
+

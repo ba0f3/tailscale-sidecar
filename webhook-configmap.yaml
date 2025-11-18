@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tailscale-webhook-config
+  namespace: tailscale
+data:
+  ts-kube-secret-pattern: "tailscale-{{NAMESPACE}}-{{POD_NAME}}"
+  ts-extra-args: "--login-server=https://your-headscale-server.com"
+

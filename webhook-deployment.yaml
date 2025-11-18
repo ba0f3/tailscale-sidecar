@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tailscale-webhook
+  namespace: tailscale
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tailscale-webhook
+  namespace: tailscale
+  labels:
+    app: tailscale-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tailscale-webhook
+  template:
+    metadata:
+      labels:
+        app: tailscale-webhook
+    spec:
+      serviceAccountName: tailscale-webhook
+      containers:
+      - name: webhook-server
+        image: ghcr.io/ba0f3/tailscale-webhook:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+          name: webhook
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "8443"
+        - name: TLS_CERT
+          value: "/etc/webhook/certs/tls.crt"
+        - name: TLS_KEY
+          value: "/etc/webhook/certs/tls.key"
+        - name: TS_EXTRA_ARGS
+          valueFrom:
+            configMapKeyRef:
+              name: tailscale-webhook-config
+              key: ts-extra-args
+              optional: true
+        - name: TS_KUBE_SECRET
+          valueFrom:
+            configMapKeyRef:
+              name: tailscale-webhook-config
+              key: ts-kube-secret-pattern
+              optional: true
+        volumeMounts:
+        - name: certs
+          mountPath: /etc/webhook/certs
+          readOnly: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: certs
+        secret:
+          secretName: tailscale-webhook-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tailscale-webhook
+  namespace: tailscale
+  labels:
+    app: tailscale-webhook
+spec:
+  ports:
+  - port: 443
+    targetPort: 8443
+    protocol: TCP
+    name: webhook
+  selector:
+    app: tailscale-webhook
+  type: ClusterIP
+
