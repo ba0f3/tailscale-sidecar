@@ -24,7 +24,34 @@ The MutatingAdmissionWebhook watches for pod creation events and automatically i
 
 ## Quick Start
 
-### 1. Build the Webhook Image
+### Option 1: Using Makefile (Recommended)
+
+```bash
+# Show all available targets
+make help
+
+# Build the Docker image
+make build
+
+# Or build and push to registry
+make push IMAGE_REGISTRY=your-registry
+
+# Deploy the webhook (generates certs, updates image, applies manifests)
+make deploy
+
+# Create and verify test pod
+make test
+
+# Check status
+make status
+
+# View logs
+make logs
+```
+
+### Option 2: Manual Deployment
+
+#### 1. Build the Webhook Image
 
 ```bash
 cd webhook-server
@@ -33,13 +60,16 @@ docker build -t tailscale-webhook:latest .
 
 If using a container registry:
 ```bash
-docker tag tailscale-webhook:latest your-ghcr.io/ba0f3/tailscale-webhook:latest
-docker push ghcr.io/ba0f3/tailscale-webhook:latest
+docker tag tailscale-webhook:latest your-registry/tailscale-webhook:latest
+docker push your-registry/tailscale-webhook:latest
 ```
 
-Then update `webhook-deployment.yaml` with your image name.
+Then update `webhook-deployment.yaml` with your image name, or use:
+```bash
+make update-image IMAGE_REGISTRY=your-registry
+```
 
-### 2. Deploy the Webhook
+#### 2. Deploy the Webhook
 
 ```bash
 # Make scripts executable
@@ -132,6 +162,65 @@ Add label to namespace:
 kubectl label namespace my-namespace tailscale.com/inject=disabled
 ```
 
+## Makefile Usage
+
+The Makefile provides convenient targets for building, deploying, and managing the webhook:
+
+### Common Commands
+
+```bash
+# Show all available targets
+make help
+
+# Build Docker image
+make build
+
+# Build and push to registry
+make push IMAGE_REGISTRY=your-registry
+
+# Deploy webhook (generates certs, updates image, applies manifests)
+make deploy
+
+# Quick deploy (skip certificate regeneration)
+make deploy-quick
+
+# Create test pod and verify injection
+make test
+
+# Check webhook status
+make status
+
+# View webhook logs
+make logs
+
+# Restart webhook
+make restart
+
+# Update login server configuration
+make config-update LOGIN_SERVER=https://your-headscale-server.com
+
+# Clean up (remove test pod and certificates)
+make clean
+
+# Remove everything including webhook deployment
+make clean-all
+```
+
+### Customizing Image Registry
+
+You can customize the image registry and tag:
+
+```bash
+# Build with custom registry
+make build IMAGE_REGISTRY=ghcr.io/your-org
+
+# Push with custom registry and tag
+make push IMAGE_REGISTRY=ghcr.io/your-org IMAGE_TAG=v1.0.0
+
+# Deploy with custom image
+make deploy IMAGE_REGISTRY=ghcr.io/your-org IMAGE_TAG=v1.0.0
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -148,7 +237,7 @@ The webhook server supports these environment variables (set in `webhook-deploym
 
 The webhook reads configuration from the `tailscale-webhook-config` ConfigMap:
 
-- `ts-extra-args`: Tailscale extra arguments (e.g., `--login-server=https://up.568e.vn`). This allows you to change the Headscale login server without rebuilding the webhook image.
+- `ts-extra-args`: Tailscale extra arguments (e.g., `--login-server=https://your-headscale-server.com`). This allows you to change the Headscale login server without rebuilding the webhook image.
 - `ts-kube-secret-pattern`: Pattern for Kubernetes secret names (currently not used, reserved for future use)
 
 To update the login server:
