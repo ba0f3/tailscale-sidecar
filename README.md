@@ -116,6 +116,50 @@ kubectl logs -n tailscale -l app=tailscale-webhook
 kubectl get mutatingwebhookconfiguration tailscale-webhook
 ```
 
+### 4. Create Tailscale Auth Secret
+
+The Tailscale sidecar requires an auth key to connect to your Tailscale/Headscale network. You need to create a secret named `tailscale-auth` in **each namespace** where you want to use sidecar injection.
+
+#### Generate an Auth Key
+
+**For Headscale:**
+```bash
+# Generate an ephemeral auth key (recommended for Kubernetes)
+headscale preauthkeys create --ephemeral --expiration 90d
+
+# Or generate a reusable key
+headscale preauthkeys create --reusable --expiration 90d
+```
+
+**For Tailscale:**
+```bash
+# Generate an auth key from the Tailscale admin console
+# Go to: https://login.tailscale.com/admin/settings/keys
+# Create a new auth key with "Ephemeral" enabled
+```
+
+#### Create the Secret
+
+Create the secret in each namespace where you'll deploy pods with sidecar injection:
+
+```bash
+# For the default namespace
+kubectl create secret generic tailscale-auth \
+  --from-literal=TS_AUTHKEY=<your-auth-key> \
+  --namespace=default
+
+# For other namespaces (e.g., lab, production, etc.)
+kubectl create secret generic tailscale-auth \
+  --from-literal=TS_AUTHKEY=<your-auth-key> \
+  --namespace=lab
+
+kubectl create secret generic tailscale-auth \
+  --from-literal=TS_AUTHKEY=<your-auth-key> \
+  --namespace=production
+```
+
+**Note**: Using ephemeral auth keys is recommended for Kubernetes workloads as they ensure nodes are automatically removed from your network when pods are deleted.
+
 ## Usage
 
 ### Inject Sidecar into a Pod
