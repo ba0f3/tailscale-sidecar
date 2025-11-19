@@ -1,4 +1,4 @@
-module github.com/tailscale/k8s-webhook
+module github.com/ba0f3/tailscale-sidecar
 
 go 1.23
 

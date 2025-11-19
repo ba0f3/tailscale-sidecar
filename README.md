@@ -6,6 +6,8 @@ This webhook automatically injects the Tailscale sidecar container into pods lab
 
 The MutatingAdmissionWebhook watches for pod creation events and automatically injects the Tailscale sidecar container (in privileged mode) when a pod has the `tailscale.com/inject: "true"` label.
 
+> **Note**: This webhook is primarily designed to support **Headscale** (an open-source implementation of the Tailscale control server), but it can also be used with the official Tailscale control plane. It handles unique hostname generation and state management to ensure compatibility with Headscale's requirements.
+
 ## Architecture
 
 - **Webhook Server**: Go-based HTTP server that handles admission requests
@@ -20,7 +22,7 @@ The MutatingAdmissionWebhook watches for pod creation events and automatically i
 - `kubectl` configured to access your cluster
 - `openssl` for certificate generation
 - Docker (for building the webhook image)
-- Go 1.21+ (for building the webhook server)
+- Go 1.23+ (for building the webhook server)
 
 ## Quick Start
 
@@ -239,11 +241,9 @@ The webhook reads configuration from the `tailscale-webhook-config` ConfigMap:
 
 - `ts-extra-args`: Tailscale extra arguments (e.g., `--login-server=https://your-headscale-server.com`). This allows you to change the Headscale login server without rebuilding the webhook image.
 - `ts-kube-secret-pattern`: Pattern for Kubernetes secret names. Supports template variables:
-  - `{{NAMESPACE}}` - Replaced with pod namespace
-  - `{{POD_NAME}}` - Replaced with pod name
-  - `{{POD_UID}}` - Replaced with pod UID
+  - `{{NAMESPACE}}` - Replaced with pod namespace (runtime expansion)
+  - `{{POD_NAME}}` - Replaced with pod name (runtime expansion)
   - Example: `tailscale-{{NAMESPACE}}-{{POD_NAME}}` becomes `tailscale-default-my-pod`
-  - The pattern is automatically sanitized to comply with Kubernetes DNS-1123 subdomain requirements
 
 To update the login server:
 ```bash
@@ -260,12 +260,12 @@ The injected sidecar matches the configuration from `sidecar.yaml`:
 - **Container Name**: `ts-sidecar-<namespace>-<pod-name>` (unique per pod to avoid name collisions)
 - **Environment Variables**:
   - `TS_EXTRA_ARGS`: Login server URL (configurable via ConfigMap)
-  - `TS_HOSTNAME`: Unique hostname format `<pod-name>-<namespace>` to avoid Headscale name collisions
-  - `TS_KUBE_SECRET`: Kubernetes secret name for state storage (generated from pattern in ConfigMap, e.g., `tailscale-<namespace>-<pod-name>`)
+  - `TS_HOSTNAME`: Unique hostname format `$(POD_NAME)-$(POD_NAMESPACE)` to avoid Headscale name collisions
+  - `TS_KUBE_SECRET`: Kubernetes secret name for state storage (generated from pattern in ConfigMap, e.g., `tailscale-$(POD_NAMESPACE)-$(POD_NAME)`)
   - `TS_USERSPACE`: false (privileged mode)
   - `TS_DEBUG_FIREWALL_MODE`: auto
   - `TS_AUTHKEY`: From `tailscale-auth` secret
-  - `POD_NAME` and `POD_UID`: From pod metadata
+  - `POD_NAME`, `POD_NAMESPACE`, and `POD_UID`: From pod metadata
 
 **Note**: Each sidecar gets a unique container name and hostname to prevent collisions in Headscale when multiple pods with the same name exist in different namespaces or when pods are recreated.
 
