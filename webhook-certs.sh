@@ -67,7 +67,19 @@ kubectl create secret generic "${SECRET_NAME}" \
   --from-file=ca.crt="${CERT_DIR}/ca-cert.pem" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# Update MutatingWebhookConfiguration with CA bundle
+# Update mutating-webhook.yaml with CA bundle
+if [ -f "mutating-webhook.yaml" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|caBundle: .*|caBundle: ${CA_BUNDLE}|" mutating-webhook.yaml
+    else
+        sed -i "s|caBundle: .*|caBundle: ${CA_BUNDLE}|" mutating-webhook.yaml
+    fi
+    echo "Updated mutating-webhook.yaml with new CA bundle"
+else
+    echo "Warning: mutating-webhook.yaml not found"
+fi
+
+# Update MutatingWebhookConfiguration with CA bundle (live object)
 if kubectl get mutatingwebhookconfiguration "${WEBHOOK_NAME}" &>/dev/null; then
   kubectl patch mutatingwebhookconfiguration "${WEBHOOK_NAME}" --type='json' \
     -p="[{\"op\": \"replace\", \"path\": \"/webhooks/0/clientConfig/caBundle\", \"value\": \"${CA_BUNDLE}\"}]"

@@ -1,10 +1,10 @@
 module github.com/tailscale/k8s-webhook
 
-go 1.25
+go 1.23
 
 require (
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
+	k8s.io/api v0.31.0
+	k8s.io/apimachinery v0.31.0
 )
 
 require (

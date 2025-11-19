@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM public.ecr.aws/docker/library/golang:1.24-alpine AS builder
 
 WORKDIR /build
 
@@ -15,7 +15,7 @@ RUN go mod tidy && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o webhook-server main.go
 
 # Runtime stage
-FROM alpine:latest
+FROM public.ecr.aws/docker/library/alpine:3.19
 
 RUN apk --no-cache add ca-certificates
 
