@@ -269,6 +269,28 @@ The injected sidecar matches the configuration from `sidecar.yaml`:
 
 **Note**: Each sidecar gets a unique container name and hostname to prevent collisions in Headscale when multiple pods with the same name exist in different namespaces or when pods are recreated.
 
+### Ephemeral Nodes (Auto-cleanup on Pod Deletion)
+
+To make sidecar nodes automatically removed from Headscale when pods are deleted, you need to use an **ephemeral auth key**:
+
+1. **Generate an ephemeral auth key in Headscale**:
+   ```bash
+   # Using Headscale CLI
+   headscale preauthkeys create --ephemeral --expiration 90d
+   ```
+
+2. **Update the `tailscale-auth` secret** with the ephemeral key:
+   ```bash
+   kubectl create secret generic tailscale-auth \
+     --from-literal=TS_AUTHKEY=<your-ephemeral-auth-key> \
+     --namespace=default \
+     --dry-run=client -o yaml | kubectl apply -f -
+   ```
+
+3. **Verify the setup**: When you delete a pod, the corresponding node should be automatically removed from your Headscale network.
+
+**Note**: Ephemeral auth keys are the recommended approach for Kubernetes workloads as they ensure automatic cleanup and prevent stale nodes from accumulating in your network.
+
 ### Service Account
 
 The webhook uses the pod's existing service account. If the pod doesn't have one, it will use the `default` service account. Ensure the service account has the necessary permissions (see `role.yaml` and `rolebinding.yaml` for reference).
