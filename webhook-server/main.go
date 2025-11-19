@@ -247,6 +247,24 @@ func generateSidecarPatch(pod *corev1.Pod) []patchOperation {
 		},
 	}
 
+	// Ensure automountServiceAccountToken is enabled (required for Tailscale to access K8s API)
+	if pod.Spec.AutomountServiceAccountToken == nil || !*pod.Spec.AutomountServiceAccountToken {
+		patches = append(patches, patchOperation{
+			Op:    "add",
+			Path:  "/spec/automountServiceAccountToken",
+			Value: true,
+		})
+	}
+
+	// Ensure pod has a service account (use default if not specified)
+	if pod.Spec.ServiceAccountName == "" {
+		patches = append(patches, patchOperation{
+			Op:    "add",
+			Path:  "/spec/serviceAccountName",
+			Value: "default",
+		})
+	}
+
 	// Add sidecar container
 	patches = append(patches, patchOperation{
 		Op:    "add",
